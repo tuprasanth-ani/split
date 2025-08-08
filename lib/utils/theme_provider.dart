@@ -318,16 +318,18 @@ class ThemeProvider extends ChangeNotifier {
   /// Get card theme
   CardThemeData _getCardTheme(ColorScheme colorScheme, Brightness brightness) {
     return CardThemeData(
-      color: colorScheme.surfaceContainerHighest,
-      shadowColor: colorScheme.primary.withValues(alpha: 0.3),
-      elevation: 4,
+      color: colorScheme.surface.withOpacity(0.7), // glassy
+      shadowColor: colorScheme.primary.withOpacity(0.18),
+      elevation: 12,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
         side: BorderSide(
-          color: colorScheme.primary.withValues(alpha: 0.1),
-          width: 1,
+          color: colorScheme.primary.withOpacity(0.08),
+          width: 1.5,
         ),
       ),
+      clipBehavior: Clip.antiAlias,
+      surfaceTintColor: colorScheme.surfaceTint,
     );
   }
 
@@ -335,18 +337,18 @@ class ThemeProvider extends ChangeNotifier {
   ElevatedButtonThemeData _getElevatedButtonTheme(ColorScheme colorScheme) {
     return ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: colorScheme.primary,
+        backgroundColor: colorScheme.primary.withOpacity(0.85),
         foregroundColor: colorScheme.onPrimary,
-        elevation: 6,
-        shadowColor: colorScheme.primary.withValues(alpha: 0.4),
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+        elevation: 10,
+        shadowColor: colorScheme.primary.withOpacity(0.25),
+        padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 18),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(25),
+          borderRadius: BorderRadius.circular(32),
         ),
         textStyle: GoogleFonts.poppins(
-          fontSize: 14 * _textScaleFactor,
+          fontSize: 16 * _textScaleFactor,
           fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
+          letterSpacing: 0.7,
         ),
       ),
     );
@@ -446,19 +448,19 @@ class ThemeProvider extends ChangeNotifier {
   /// Get bottom navigation theme
   BottomNavigationBarThemeData _getBottomNavTheme(ColorScheme colorScheme, Brightness brightness) {
     return BottomNavigationBarThemeData(
-      backgroundColor: colorScheme.surface,
+      backgroundColor: colorScheme.surface.withOpacity(0.8),
       selectedItemColor: colorScheme.primary,
       unselectedItemColor: colorScheme.onSurfaceVariant,
       selectedLabelStyle: GoogleFonts.inter(
-        fontSize: 12 * _textScaleFactor,
-        fontWeight: FontWeight.w600,
+        fontSize: 13 * _textScaleFactor,
+        fontWeight: FontWeight.w700,
       ),
       unselectedLabelStyle: GoogleFonts.inter(
         fontSize: 12 * _textScaleFactor,
         fontWeight: FontWeight.w400,
       ),
       type: BottomNavigationBarType.fixed,
-      elevation: 8,
+      elevation: 16,
     );
   }
 
@@ -508,19 +510,19 @@ class ThemeProvider extends ChangeNotifier {
   /// Get dialog theme
   DialogThemeData _getDialogTheme(ColorScheme colorScheme, Brightness brightness) {
     return DialogThemeData(
-      backgroundColor: colorScheme.surface,
+      backgroundColor: colorScheme.surface.withOpacity(0.7),
       surfaceTintColor: colorScheme.surfaceTint,
-      elevation: 6,
+      elevation: 16,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
       ),
       titleTextStyle: GoogleFonts.inter(
-        fontSize: 20 * _textScaleFactor,
-        fontWeight: FontWeight.w600,
+        fontSize: 22 * _textScaleFactor,
+        fontWeight: FontWeight.w700,
         color: colorScheme.onSurface,
       ),
       contentTextStyle: GoogleFonts.inter(
-        fontSize: 14 * _textScaleFactor,
+        fontSize: 16 * _textScaleFactor,
         color: colorScheme.onSurfaceVariant,
       ),
     );
