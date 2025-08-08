@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:splitzy/utils/formatters.dart';
+import 'dart:ui';
 
 enum ExpenseCategory {
   food,
@@ -112,24 +113,58 @@ class ExpenseTile extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: isSelected ? 4 : 1,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: isSelected
-              ? Border.all(color: colorScheme.primary, width: 2)
-              : null,
-        ),
-        child: ListTile(
-          contentPadding: const EdgeInsets.all(16),
-          leading: _buildCategoryIcon(),
-          title: _buildTitle(theme),
-          subtitle: _buildSubtitle(theme),
-          trailing: _buildTrailing(context),
-          onTap: onTap,
-          onLongPress: showActions ? () => _showActionBottomSheet(context) : null,
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: showActions ? () => _showActionBottomSheet(context) : null,
+      child: AnimatedScale(
+        scale: isSelected ? 0.98 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Stack(
+              children: [
+                // Glassmorphism background
+                BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          colorScheme.primary.withOpacity(0.10),
+                          colorScheme.surface.withOpacity(0.70),
+                          Colors.white.withOpacity(0.10),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.primary.withOpacity(0.10),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                      border: Border.all(
+                        color: isSelected ? colorScheme.primary.withOpacity(0.25) : colorScheme.primary.withOpacity(0.08),
+                        width: isSelected ? 2.2 : 1.2,
+                      ),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.all(20),
+                      leading: _buildCategoryIcon(),
+                      title: _buildTitle(theme),
+                      subtitle: _buildSubtitle(theme),
+                      trailing: _buildTrailing(context),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -263,91 +298,115 @@ class ExpenseTile extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: category.color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    category.icon,
-                    color: category.color,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        description,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        Formatters.formatCurrency(amount),
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
+      builder: (context) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  category.color.withOpacity(0.10),
+                  Theme.of(context).colorScheme.surface.withOpacity(0.85),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              boxShadow: [
+                BoxShadow(
+                  color: category.color.withOpacity(0.10),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
-            
-            const SizedBox(height: 20),
-            
-            // Action buttons
-            if (onEdit != null)
-              _buildActionButton(
-                context,
-                'Edit Expense',
-                Icons.edit,
-                Colors.blue,
-                () {
-                  Navigator.pop(context);
-                  onEdit?.call();
-                },
-              ),
-            
-            if (onEdit != null && onDelete != null)
-              const SizedBox(height: 12),
-            
-            if (onDelete != null)
-              _buildActionButton(
-                context,
-                'Delete Expense',
-                Icons.delete,
-                Colors.red,
-                () {
-                  Navigator.pop(context);
-                  _showDeleteConfirmation(context);
-                },
-              ),
-            
-            const SizedBox(height: 20),
-          ],
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: category.color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        category.icon,
+                        color: category.color,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            description,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            Formatters.formatCurrency(amount),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // Action buttons
+                if (onEdit != null)
+                  _buildActionButton(
+                    context,
+                    'Edit Expense',
+                    Icons.edit,
+                    Colors.blue,
+                    () {
+                      Navigator.pop(context);
+                      onEdit?.call();
+                    },
+                  ),
+                
+                if (onEdit != null && onDelete != null)
+                  const SizedBox(height: 12),
+                
+                if (onDelete != null)
+                  _buildActionButton(
+                    context,
+                    'Delete Expense',
+                    Icons.delete,
+                    Colors.red,
+                    () {
+                      Navigator.pop(context);
+                      _showDeleteConfirmation(context);
+                    },
+                  ),
+                
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
         ),
       ),
     );

@@ -45,7 +45,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
           tabs: const [
             Tab(text: 'Expenses', icon: Icon(Icons.receipt)),
             Tab(text: 'Balances', icon: Icon(Icons.account_balance)),
-            Tab(text: 'Settle', icon: Icon(Icons.payment)),
+            Tab(text: 'Friends', icon: Icon(Icons.people)),
           ],
         ),
         actions: [
@@ -103,7 +103,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
         children: [
           _buildExpensesTab(),
           _buildBalancesTab(),
-          _buildSettleTab(),
+          _buildFriendsTab(),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -289,41 +289,21 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 
-  Widget _buildSettleTab() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.payment,
-            size: 80,
-            color: Colors.grey.shade400,
+  Widget _buildFriendsTab() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: currentGroup.members.length,
+      itemBuilder: (context, index) {
+        final memberId = currentGroup.members[index];
+        final memberName = currentGroup.memberNames[memberId] ?? memberId;
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ListTile(
+            leading: const Icon(Icons.person),
+            title: Text(memberName),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Settle Up',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Colors.grey.shade600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Record payments between group members',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey.shade500,
-            ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () {
-              // Navigate to settle up screen
-            },
-            icon: const Icon(Icons.payment),
-            label: const Text('Record Payment'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -468,15 +448,20 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   }
 
   // ADDED: Extracted duplicate code into a helper method
-  void _addNewMember(TextEditingController controller, StateSetter setDialogState) {
-    final newMember = controller.text.trim();
-    if (newMember.isNotEmpty && !currentGroup.members.contains(newMember)) {
+  void _addNewMember(TextEditingController controller, StateSetter setDialogState) async {
+    final newMemberName = controller.text.trim();
+    if (newMemberName.isEmpty) return;
+    // For demo, use name as both ID and name. In real app, use contact picker or email/UID.
+    final newMemberId = newMemberName;
+    if (currentGroup.members.contains(newMemberId)) return;
+    final dbService = Provider.of<DatabaseService>(context, listen: false);
+    final success = await dbService.addMemberToGroup(currentGroup.id, newMemberId, newMemberName);
+    if (success) {
       setDialogState(() {
         List<String> newMembers = List.from(currentGroup.members);
-        newMembers.add(newMember);
+        newMembers.add(newMemberId);
         Map<String, String> newMemberNames = Map.from(currentGroup.memberNames);
-        newMemberNames[newMember] = newMember;
-
+        newMemberNames[newMemberId] = newMemberName;
         currentGroup = currentGroup.copyWith(
           members: newMembers,
           memberNames: newMemberNames,
@@ -484,6 +469,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       });
       setState(() {}); // Update the main screen
       controller.clear();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to add member')),
+      );
     }
   }
 

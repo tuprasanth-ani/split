@@ -21,6 +21,7 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
   final List<String> _members = [];
   final Map<String, String> _memberNames = {};
   bool _isLoading = false;
+  String? _contactSearchQuery;
 
   @override
   void initState() {
@@ -56,6 +57,9 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authService = Provider.of<AuthService>(context);
+    final userLoaded = authService.currentUser != null && !authService.isLoading;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Group'),
@@ -137,27 +141,6 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
                             onPressed: _isLoading ? null : _showContactsDialog,
                             tooltip: 'Add from contacts',
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.add, color: Colors.green),
-                            onPressed: _isLoading || _newMemberController.text.trim().isEmpty
-                                ? null
-                                : () {
-                              final newMemberName = _newMemberController.text.trim();
-                              if (Validators.validateName(newMemberName, minLength: 2, maxLength: 50, fieldName: 'Member Name') == null) {
-                                setState(() {
-                                  // Generate a simple ID for the new member (name-based)
-                                  final memberId = 'member_${newMemberName.toLowerCase().replaceAll(' ', '_')}';
-                                  if (!_members.contains(memberId)) {
-                                    _members.add(memberId);
-                                    _memberNames[memberId] = newMemberName;
-                                    _newMemberController.clear();
-                                  }
-                                });
-                              } else {
-                                _showErrorSnackBar('Invalid member name');
-                              }
-                            },
-                          ),
                         ],
                       ),
                     ),
@@ -167,7 +150,7 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
             ),
             const SizedBox(height: 32),
             ElevatedButton(
-              onPressed: _isLoading ? null : _saveGroup,
+              onPressed: !_isLoading && userLoaded ? _saveGroup : null,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
@@ -197,9 +180,13 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
   }
 
   Future<void> _saveGroup() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      debugPrint('Form validation failed');
+      return;
+    }
     if (_members.isEmpty) {
       _showErrorSnackBar('Please add at least one member');
+      debugPrint('No members in group');
       return;
     }
     setState(() => _isLoading = true);
@@ -207,7 +194,13 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
       final name = _nameController.text.trim();
       final authService = Provider.of<AuthService>(context, listen: false);
       final user = authService.currentUser;
-      final userId = user?.uid ?? 'anonymous';
+      if (user == null) {
+        _showErrorSnackBar('User not loaded. Please wait and try again.');
+        debugPrint('User not loaded');
+        setState(() => _isLoading = false);
+        return;
+      }
+      final userId = user.uid;
       final group = GroupModel.create(
         name: name,
         members: _members,
@@ -215,8 +208,13 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
         createdBy: userId,
       );
       final dbService = Provider.of<DatabaseService>(context, listen: false);
+      debugPrint('Attempting to create group: $name');
       final success = await dbService.createGroup(group);
-      if (!mounted) return;
+      debugPrint('createGroup returned: $success');
+      if (!mounted) {
+        debugPrint('Widget not mounted after group creation');
+        return;
+      }
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Group "$name" created successfully!')),
@@ -224,10 +222,12 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
         Navigator.pop(context, true);
       } else {
         _showErrorSnackBar('Failed to create group');
+        debugPrint('createGroup returned false');
       }
     } catch (e) {
       if (!mounted) return;
       _showErrorSnackBar('Failed to create group. Please try again.');
+      debugPrint('Exception in _saveGroup: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -248,47 +248,64 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
         content: SizedBox(
           width: double.maxFinite,
           height: 400,
-          child: Consumer<ContactsService>(
-            builder: (context, contactsService, child) {
-              if (contactsService.isLoading) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (contactsService.contacts.isEmpty) {
-                return const Center(
-                  child: Text('No contacts found'),
-                );
-              }
-
-              return ListView.builder(
-                itemCount: contactsService.contacts.length,
-                itemBuilder: (context, index) {
-                  final contact = contactsService.contacts[index];
-                  return ListTile(
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.person),
-                    ),
-                    title: Text(contact.displayName),
-                    subtitle: contactsService.getContactPhone(contact) != null
-                        ? Text(contactsService.getContactPhone(contact)!)
-                        : contactsService.getContactEmail(contact) != null
-                        ? Text(contactsService.getContactEmail(contact)!)
-                        : null,
-                    onTap: () {
-                      final name = contact.displayName;
-                      final memberId = 'member_${name.toLowerCase().replaceAll(' ', '_')}';
-                      if (!_members.contains(memberId)) {
-                        setState(() {
-                          _members.add(memberId);
-                          _memberNames[memberId] = name;
-                        });
-                      }
-                      Navigator.of(context).pop();
-                    },
-                  );
+          child: Column(
+            children: [
+              TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Search contacts',
+                  prefixIcon: Icon(Icons.search),
+                ),
+                onChanged: (query) {
+                  setState(() {
+                    _contactSearchQuery = query;
+                  });
                 },
-              );
-            },
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Consumer<ContactsService>(
+                  builder: (context, contactsService, child) {
+                    final contacts = _contactSearchQuery == null || _contactSearchQuery!.isEmpty
+                      ? contactsService.contacts
+                      : contactsService.contacts.where((c) => c.displayName.toLowerCase().contains(_contactSearchQuery!.toLowerCase())).toList();
+                    if (contactsService.isLoading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (contacts.isEmpty) {
+                      return const Center(child: Text('No contacts found'));
+                    }
+                    return ListView.builder(
+                      itemCount: contacts.length,
+                      itemBuilder: (context, index) {
+                        final contact = contacts[index];
+                        return ListTile(
+                          leading: const CircleAvatar(
+                            child: Icon(Icons.person),
+                          ),
+                          title: Text(contact.displayName),
+                          subtitle: contactsService.getContactPhone(contact) != null
+                              ? Text(contactsService.getContactPhone(contact)!)
+                              : contactsService.getContactEmail(contact) != null
+                                  ? Text(contactsService.getContactEmail(contact)!)
+                                  : null,
+                          onTap: () {
+                            final name = contact.displayName;
+                            final memberId = 'member_${name.toLowerCase().replaceAll(' ', '_')}';
+                            if (!_members.contains(memberId)) {
+                              setState(() {
+                                _members.add(memberId);
+                                _memberNames[memberId] = name;
+                              });
+                            }
+                            Navigator.of(context).pop();
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
         actions: [

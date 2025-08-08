@@ -404,6 +404,35 @@ class DatabaseService extends ChangeNotifier {
     }
   }
 
+  Stream<List<ExpenseModel>> getAllExpenses() {
+    try {
+      return _db
+          .collection('expenses')
+          .orderBy('date', descending: true)
+          .snapshots()
+          .map((snapshot) {
+            return snapshot.docs
+                .map((doc) {
+                  try {
+                    return ExpenseModel.fromMap({
+                      'id': doc.id,
+                      ...doc.data(),
+                    });
+                  } catch (e) {
+                    _logger.e('Error parsing expense ${doc.id}: $e');
+                    return null;
+                  }
+                })
+                .where((expense) => expense != null)
+                .cast<ExpenseModel>()
+                .toList();
+          });
+    } catch (e) {
+      _logger.e('Error getting all expenses: $e');
+      return Stream.value([]);
+    }
+  }
+
   // ========== SETTLEMENT OPERATIONS ==========
   Future<bool> addSettlement(SettlementModel settlement) async {
     try {

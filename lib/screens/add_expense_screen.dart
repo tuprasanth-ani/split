@@ -38,6 +38,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     super.initState();
     _selectedGroup = widget.group;
     _loadUserGroups();
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final currentUser = authService.currentUser;
+    if (currentUser != null) {
+      _selectedPayer = currentUser.uid;
+    }
     if (_selectedGroup != null) {
       _initializeGroupData();
     }
@@ -48,7 +53,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
     _availableMembers = [..._selectedGroup!.members];
     _memberNames = Map.from(_selectedGroup!.memberNames);
-    _selectedPayer = _availableMembers.first;
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final currentUser = authService.currentUser;
+    if (currentUser != null && _availableMembers.contains(currentUser.uid)) {
+      _selectedPayer = currentUser.uid;
+    } else {
+      _selectedPayer = _availableMembers.first;
+    }
     _selectedMembers = [..._availableMembers];
   }
 
@@ -114,25 +125,47 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
-                    DropdownButtonFormField<GroupModel>(
+                    DropdownButtonFormField<GroupModel?>(
                       value: _selectedGroup,
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                         hintText: 'Choose a group',
                       ),
-                      items: _userGroups.map((group) {
-                        return DropdownMenuItem(
-                          value: group,
-                          child: Text(group.name),
-                        );
-                      }).toList(),
-                      onChanged: _isLoading ? null : (group) {
+                      items: [
+                        if (widget.group == null)
+                          DropdownMenuItem<GroupModel?>(
+                            value: null,
+                            child: Text('None'),
+                          ),
+                        ..._userGroups.map((group) {
+                          return DropdownMenuItem(
+                            value: group,
+                            child: Text(group.name),
+                          );
+                        }).toList(),
+                      ],
+                      onChanged: widget.group != null || _isLoading ? null : (group) {
                         setState(() {
                           _selectedGroup = group;
-                          _initializeGroupData();
+                          if (group != null) {
+                            _initializeGroupData();
+                          } else {
+                            // For non-group expense, only user and one friend allowed
+                            final authService = Provider.of<AuthService>(context, listen: false);
+                            final currentUser = authService.currentUser;
+                            if (currentUser != null) {
+                              _availableMembers = [currentUser.uid];
+                              _memberNames = {currentUser.uid: currentUser.displayName};
+                              _selectedPayer = currentUser.uid;
+                              _selectedMembers = [currentUser.uid];
+                            }
+                          }
                         });
                       },
-                      validator: (value) => value == null ? 'Please select a group' : null,
+                      validator: (value) => null, // No validation needed for group
+                      disabledHint: widget.group != null && _selectedGroup != null
+                          ? Text(_selectedGroup!.name)
+                          : null,
                     ),
                   ],
                 ),
@@ -223,7 +256,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           Row(
                             children: [
                               TextButton.icon(
-                                onPressed: _isLoading ? null : _showAddPersonDialog,
+                                onPressed: _isLoading || (_selectedGroup == null && _selectedMembers.length >= 2) ? null : _showAddPersonDialog,
                                 icon: const Icon(Icons.person_add),
                                 label: const Text('Add Person'),
                               ),
@@ -251,9 +284,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       ..._availableMembers.map((member) => CheckboxListTile(
                         title: Text(_memberNames[member] ?? member),
                         value: _selectedMembers.contains(member),
-                        onChanged: _isLoading ? null : (checked) {
+                        onChanged: _isLoading || (_selectedGroup == null && _selectedMembers.length >= 2 && !_selectedMembers.contains(member)) ? null : (checked) {
                           setState(() {
-                            if (checked == true) {
+                            if (checked == true && (_selectedGroup != null || _selectedMembers.length < 2)) {
                               _selectedMembers.add(member);
                             } else {
                               _selectedMembers.remove(member);
