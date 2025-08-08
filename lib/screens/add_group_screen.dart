@@ -57,6 +57,9 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authService = Provider.of<AuthService>(context);
+    final userLoaded = authService.currentUser != null && !authService.isLoading;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Group'),
@@ -147,7 +150,7 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
             ),
             const SizedBox(height: 32),
             ElevatedButton(
-              onPressed: _isLoading ? null : _saveGroup,
+              onPressed: !_isLoading && userLoaded ? _saveGroup : null,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
@@ -187,7 +190,12 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
       final name = _nameController.text.trim();
       final authService = Provider.of<AuthService>(context, listen: false);
       final user = authService.currentUser;
-      final userId = user?.uid ?? 'anonymous';
+      if (user == null) {
+        _showErrorSnackBar('User not loaded. Please wait and try again.');
+        setState(() => _isLoading = false);
+        return;
+      }
+      final userId = user.uid;
       final group = GroupModel.create(
         name: name,
         members: _members,
