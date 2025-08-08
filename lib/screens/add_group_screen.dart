@@ -180,9 +180,13 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
   }
 
   Future<void> _saveGroup() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      debugPrint('Form validation failed');
+      return;
+    }
     if (_members.isEmpty) {
       _showErrorSnackBar('Please add at least one member');
+      debugPrint('No members in group');
       return;
     }
     setState(() => _isLoading = true);
@@ -192,6 +196,7 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
       final user = authService.currentUser;
       if (user == null) {
         _showErrorSnackBar('User not loaded. Please wait and try again.');
+        debugPrint('User not loaded');
         setState(() => _isLoading = false);
         return;
       }
@@ -203,8 +208,13 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
         createdBy: userId,
       );
       final dbService = Provider.of<DatabaseService>(context, listen: false);
+      debugPrint('Attempting to create group: $name');
       final success = await dbService.createGroup(group);
-      if (!mounted) return;
+      debugPrint('createGroup returned: $success');
+      if (!mounted) {
+        debugPrint('Widget not mounted after group creation');
+        return;
+      }
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Group "$name" created successfully!')),
@@ -212,10 +222,12 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
         Navigator.pop(context, true);
       } else {
         _showErrorSnackBar('Failed to create group');
+        debugPrint('createGroup returned false');
       }
     } catch (e) {
       if (!mounted) return;
       _showErrorSnackBar('Failed to create group. Please try again.');
+      debugPrint('Exception in _saveGroup: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
