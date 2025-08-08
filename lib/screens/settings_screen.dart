@@ -730,7 +730,6 @@ Note: This is a demo export. In the full version, actual data would be exported 
   }
 
   Future<void> _deleteAccount() async {
-    // Capture context-dependent objects before async operations
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final authService = Provider.of<AuthService>(context, listen: false);
@@ -760,14 +759,36 @@ Note: This is a demo export. In the full version, actual data would be exported 
       // Clear local storage
       await LocalStorageService.clearAll();
 
-      // Navigate to login or show success message
+      // Sign out and redirect to login
+      await authService.signOut();
+      if (!mounted) return;
+      navigator.pushNamedAndRemoveUntil('/login', (route) => false);
+
       scaffoldMessenger.showSnackBar(
         const SnackBar(
           content: Text('Account deleted successfully'),
           backgroundColor: Colors.green,
         ),
       );
-
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        navigator.pop(); // Close loading dialog if open
+        if (e.code == 'requires-recent-login') {
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('Please re-authenticate and try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        } else {
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Text('Account deletion failed: ${e.message}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     } catch (e) {
       if (mounted) {
         navigator.pop(); // Close loading dialog if open
