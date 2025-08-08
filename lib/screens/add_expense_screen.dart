@@ -38,6 +38,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     super.initState();
     _selectedGroup = widget.group;
     _loadUserGroups();
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final currentUser = authService.currentUser;
+    if (currentUser != null) {
+      _selectedPayer = currentUser.uid;
+    }
     if (_selectedGroup != null) {
       _initializeGroupData();
     }
@@ -48,7 +53,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
     _availableMembers = [..._selectedGroup!.members];
     _memberNames = Map.from(_selectedGroup!.memberNames);
-    _selectedPayer = _availableMembers.first;
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final currentUser = authService.currentUser;
+    if (currentUser != null && _availableMembers.contains(currentUser.uid)) {
+      _selectedPayer = currentUser.uid;
+    } else {
+      _selectedPayer = _availableMembers.first;
+    }
     _selectedMembers = [..._availableMembers];
   }
 
