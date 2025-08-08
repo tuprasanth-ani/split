@@ -121,10 +121,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         hintText: 'Choose a group',
                       ),
                       items: [
-                        DropdownMenuItem<GroupModel?>(
-                          value: null,
-                          child: Text('None'),
-                        ),
+                        if (widget.group == null)
+                          DropdownMenuItem<GroupModel?>(
+                            value: null,
+                            child: Text('None'),
+                          ),
                         ..._userGroups.map((group) {
                           return DropdownMenuItem(
                             value: group,
@@ -132,7 +133,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           );
                         }).toList(),
                       ],
-                      onChanged: _isLoading ? null : (group) {
+                      onChanged: widget.group != null || _isLoading ? null : (group) {
                         setState(() {
                           _selectedGroup = group;
                           if (group != null) {
@@ -151,6 +152,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         });
                       },
                       validator: (value) => null, // No validation needed for group
+                      disabledHint: widget.group != null && _selectedGroup != null
+                          ? Text(_selectedGroup!.name)
+                          : null,
                     ),
                   ],
                 ),
@@ -241,7 +245,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           Row(
                             children: [
                               TextButton.icon(
-                                onPressed: _isLoading || _selectedMembers.length >= 2 ? null : _showAddPersonDialog,
+                                onPressed: _isLoading || (_selectedGroup == null && _selectedMembers.length >= 2) ? null : _showAddPersonDialog,
                                 icon: const Icon(Icons.person_add),
                                 label: const Text('Add Person'),
                               ),
@@ -269,9 +273,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       ..._availableMembers.map((member) => CheckboxListTile(
                         title: Text(_memberNames[member] ?? member),
                         value: _selectedMembers.contains(member),
-                        onChanged: _isLoading || _selectedMembers.length >= 2 && !_selectedMembers.contains(member) ? null : (checked) {
+                        onChanged: _isLoading || (_selectedGroup == null && _selectedMembers.length >= 2 && !_selectedMembers.contains(member)) ? null : (checked) {
                           setState(() {
-                            if (checked == true && _selectedMembers.length < 2) {
+                            if (checked == true && (_selectedGroup != null || _selectedMembers.length < 2)) {
                               _selectedMembers.add(member);
                             } else {
                               _selectedMembers.remove(member);
