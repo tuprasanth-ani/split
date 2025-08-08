@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 
 enum CustomButtonType {
   primary,
@@ -117,103 +118,117 @@ class CustomButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-
-    // Get size configurations
     final sizeConfig = _getSizeConfig();
     final effectivePadding = padding ?? sizeConfig['padding'] as EdgeInsetsGeometry;
     final fontSize = sizeConfig['fontSize'] as double;
     final iconSize = sizeConfig['iconSize'] as double;
 
-    // Build button content
     Widget buttonContent = _buildButtonContent(fontSize, iconSize);
-
-    // Wrap with container for full width if needed
     if (isFullWidth) {
-      buttonContent = SizedBox(
-        width: double.infinity,
-        child: buttonContent,
-      );
+      buttonContent = SizedBox(width: double.infinity, child: buttonContent);
     }
 
-    // Return appropriate button type
+    // Micro-interaction: scale on tap
+    return GestureDetector(
+      onTapDown: (_) => _buttonScale.value = 0.97,
+      onTapUp: (_) => _buttonScale.value = 1.0,
+      onTapCancel: () => _buttonScale.value = 1.0,
+      child: ValueListenableBuilder<double>(
+        valueListenable: _buttonScale,
+        builder: (context, scale, child) {
+          return AnimatedScale(
+            scale: scale,
+            duration: const Duration(milliseconds: 120),
+            curve: Curves.easeOut,
+            child: _buildStyledButton(context, buttonContent, effectivePadding, colorScheme),
+          );
+        },
+      ),
+    );
+  }
+
+  final ValueNotifier<double> _buttonScale = ValueNotifier(1.0);
+
+  Widget _buildStyledButton(BuildContext context, Widget child, EdgeInsetsGeometry padding, ColorScheme colorScheme) {
+    final glassGradient = LinearGradient(
+      colors: [
+        colorScheme.primary.withOpacity(0.18),
+        colorScheme.primary.withOpacity(0.08),
+        Colors.white.withOpacity(0.12),
+      ],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+    final glassShadow = [
+      BoxShadow(
+        color: colorScheme.primary.withOpacity(0.13),
+        blurRadius: 24,
+        offset: const Offset(0, 8),
+      ),
+      BoxShadow(
+        color: Colors.white.withOpacity(0.08),
+        blurRadius: 8,
+        offset: const Offset(0, 2),
+      ),
+    ];
+    final borderRadius = BorderRadius.circular(this.borderRadius ?? 32);
+
+    Color? bgColor;
+    Color? fgColor;
     switch (type) {
       case CustomButtonType.primary:
-        return ElevatedButton(
-          onPressed: isLoading ? null : onTap,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: backgroundColor ?? colorScheme.primary,
-            foregroundColor: textColor ?? colorScheme.onPrimary,
-            padding: effectivePadding,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(borderRadius ?? 12),
-            ),
-            elevation: 2,
-            shadowColor: colorScheme.primary.withValues(alpha: 0.3),
-          ),
-          child: buttonContent,
-        );
-
+        bgColor = backgroundColor ?? colorScheme.primary.withOpacity(0.85);
+        fgColor = textColor ?? colorScheme.onPrimary;
+        break;
       case CustomButtonType.secondary:
-        return ElevatedButton(
-          onPressed: isLoading ? null : onTap,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: backgroundColor ?? colorScheme.secondaryContainer,
-            foregroundColor: textColor ?? colorScheme.onSecondaryContainer,
-            padding: effectivePadding,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(borderRadius ?? 12),
-            ),
-            elevation: 1,
-          ),
-          child: buttonContent,
-        );
-
-      case CustomButtonType.outline:
-        return OutlinedButton(
-          onPressed: isLoading ? null : onTap,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: textColor ?? colorScheme.primary,
-            padding: effectivePadding,
-            side: BorderSide(
-              color: backgroundColor ?? colorScheme.primary,
-              width: 1.5,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(borderRadius ?? 12),
-            ),
-          ),
-          child: buttonContent,
-        );
-
-      case CustomButtonType.text:
-        return TextButton(
-          onPressed: isLoading ? null : onTap,
-          style: TextButton.styleFrom(
-            foregroundColor: textColor ?? colorScheme.primary,
-            padding: effectivePadding,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(borderRadius ?? 8),
-            ),
-          ),
-          child: buttonContent,
-        );
-
+        bgColor = backgroundColor ?? colorScheme.secondaryContainer.withOpacity(0.7);
+        fgColor = textColor ?? colorScheme.onSecondaryContainer;
+        break;
       case CustomButtonType.danger:
-        return ElevatedButton(
-          onPressed: isLoading ? null : onTap,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: backgroundColor ?? colorScheme.error,
-            foregroundColor: textColor ?? colorScheme.onError,
-            padding: effectivePadding,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(borderRadius ?? 12),
-            ),
-            elevation: 2,
-            shadowColor: colorScheme.error.withValues(alpha: 0.3),
-          ),
-          child: buttonContent,
-        );
+        bgColor = backgroundColor ?? colorScheme.error.withOpacity(0.85);
+        fgColor = textColor ?? colorScheme.onError;
+        break;
+      default:
+        bgColor = backgroundColor ?? Colors.transparent;
+        fgColor = textColor ?? colorScheme.primary;
     }
+
+    return ClipRRect(
+      borderRadius: borderRadius,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Glassmorphism background
+          if (type == CustomButtonType.primary || type == CustomButtonType.secondary || type == CustomButtonType.danger)
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: glassGradient,
+                  color: bgColor,
+                  borderRadius: borderRadius,
+                  boxShadow: glassShadow,
+                  border: Border.all(
+                    color: colorScheme.primary.withOpacity(0.10),
+                    width: 1.2,
+                  ),
+                ),
+                padding: padding,
+                child: Center(child: DefaultTextStyle.merge(style: TextStyle(color: fgColor), child: child)),
+              ),
+            )
+          else
+            Container(
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: borderRadius,
+              ),
+              padding: padding,
+              child: Center(child: DefaultTextStyle.merge(style: TextStyle(color: fgColor), child: child)),
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _buildButtonContent(double fontSize, double iconSize) {
