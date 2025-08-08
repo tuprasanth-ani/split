@@ -129,38 +129,20 @@ class AuthService extends ChangeNotifier {
       // Ensure Google Sign-In is initialized
       await _ensureGoogleSignInInitialized();
 
-      // Check if platform supports authenticate method
-      if (!_googleSignIn.supportsAuthenticate()) {
-        throw Exception('Google Sign-In authenticate method is not supported on this platform');
-      }
-
-      // Trigger the authentication flow using the new API (v7+)
-      final GoogleSignInAccount googleUser = await _googleSignIn.authenticate(
-        scopeHint: ['email'], // Specify required scopes
-      );
-
-      // In v7, we need to get authorization for Firebase authentication
-      final authClient = googleUser.authorizationClient;
+      // Use signIn method instead of authenticate for better compatibility
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       
-      // Try to get existing authorization or request new one
-      GoogleSignInClientAuthorization? authorization;
-      try {
-        // First try to get existing authorization
-        authorization = await authClient.authorizationForScopes(['email']);
-        
-        // If no existing authorization, request new one
-        authorization ??= await authClient.authorizeScopes(['email']);
-      } catch (e) {
-        _logger.w('Authorization failed, will try with ID token only: $e');
+      if (googleUser == null) {
+        throw Exception('Google Sign-In was cancelled by user');
       }
 
-      // Get authentication details - now synchronous in v7+
-      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+      // Get authentication details
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
       // Create credential for Firebase
       final credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
-        accessToken: authorization?.accessToken, // This might be null, Firebase will handle it
+        accessToken: googleAuth.accessToken,
       );
 
       // Sign in with Firebase
@@ -266,37 +248,17 @@ class AuthService extends ChangeNotifier {
     try {
       await _ensureGoogleSignInInitialized();
       
-      // Use the new attemptLightweightAuthentication method (v7+)
-      final result = _googleSignIn.attemptLightweightAuthentication();
-      
-      GoogleSignInAccount? googleUser;
-      
-      // Handle both synchronous and asynchronous returns
-      if (result is Future<GoogleSignInAccount?>) {
-        googleUser = await result;
-      } else {
-        googleUser = result as GoogleSignInAccount?;
-      }
+      // Use signInSilently method
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signInSilently();
       
       if (googleUser != null) {
-        // Get authorization client
-        final authClient = googleUser.authorizationClient;
-        
-        // Try to get existing authorization
-        GoogleSignInClientAuthorization? authorization;
-        try {
-          authorization = await authClient.authorizationForScopes(['email']);
-        } catch (e) {
-          _logger.w('Failed to get authorization for silent sign-in: $e');
-        }
-
-        // Get authentication tokens - now synchronous in v7+
-        final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+        // Get authentication tokens
+        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
         
         // Create Firebase credential
         final credential = GoogleAuthProvider.credential(
           idToken: googleAuth.idToken,
-          accessToken: authorization?.accessToken, // May be null for silent auth
+          accessToken: googleAuth.accessToken,
         );
 
         await _auth.signInWithCredential(credential);
@@ -398,7 +360,7 @@ class AuthService extends ChangeNotifier {
       final authClient = _currentGoogleUser!.authorizationClient;
       final authorization = await authClient.authorizationForScopes(scopes) ?? await authClient.authorizeScopes(scopes);
 
-      return authorization?.accessToken; // The null-aware operator here is still a good safeguard.
+      return authorization?.accessToken;
     } catch (e) {
       _logger.e('Failed to get access token: $e');
       return null;

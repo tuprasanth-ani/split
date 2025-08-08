@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:splitzy/screens/groups_screen.dart';
 import 'package:splitzy/screens/settings_screen.dart';
 import 'package:splitzy/screens/settle_up_screen.dart';
 import 'package:splitzy/screens/add_group_screen.dart';
 import 'package:splitzy/screens/add_expense_screen.dart';
-import 'package:splitzy/services/auth_service.dart';
-import 'package:splitzy/models/group_model.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
