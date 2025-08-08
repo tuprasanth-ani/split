@@ -165,6 +165,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildProfileSection(BuildContext context) {
+    final authService = Provider.of<AuthService>(context);
+    final user = authService.currentUser;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -185,14 +188,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'John Doe', // This would come from user data
+                    user?.displayName.isNotEmpty == true ? user!.displayName : 'Your Name',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'john.doe@email.com', // This would come from user data
+                    user?.email.isNotEmpty == true ? user!.email : 'your@email.com',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Colors.grey.shade600,
                     ),
