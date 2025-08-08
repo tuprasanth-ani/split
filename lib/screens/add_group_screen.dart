@@ -21,6 +21,7 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
   final List<String> _members = [];
   final Map<String, String> _memberNames = {};
   bool _isLoading = false;
+  String? _contactSearchQuery;
 
   @override
   void initState() {
@@ -137,27 +138,6 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
                             onPressed: _isLoading ? null : _showContactsDialog,
                             tooltip: 'Add from contacts',
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.add, color: Colors.green),
-                            onPressed: _isLoading || _newMemberController.text.trim().isEmpty
-                                ? null
-                                : () {
-                              final newMemberName = _newMemberController.text.trim();
-                              if (Validators.validateName(newMemberName, minLength: 2, maxLength: 50, fieldName: 'Member Name') == null) {
-                                setState(() {
-                                  // Generate a simple ID for the new member (name-based)
-                                  final memberId = 'member_${newMemberName.toLowerCase().replaceAll(' ', '_')}';
-                                  if (!_members.contains(memberId)) {
-                                    _members.add(memberId);
-                                    _memberNames[memberId] = newMemberName;
-                                    _newMemberController.clear();
-                                  }
-                                });
-                              } else {
-                                _showErrorSnackBar('Invalid member name');
-                              }
-                            },
-                          ),
                         ],
                       ),
                     ),
@@ -248,47 +228,64 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
         content: SizedBox(
           width: double.maxFinite,
           height: 400,
-          child: Consumer<ContactsService>(
-            builder: (context, contactsService, child) {
-              if (contactsService.isLoading) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (contactsService.contacts.isEmpty) {
-                return const Center(
-                  child: Text('No contacts found'),
-                );
-              }
-
-              return ListView.builder(
-                itemCount: contactsService.contacts.length,
-                itemBuilder: (context, index) {
-                  final contact = contactsService.contacts[index];
-                  return ListTile(
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.person),
-                    ),
-                    title: Text(contact.displayName),
-                    subtitle: contactsService.getContactPhone(contact) != null
-                        ? Text(contactsService.getContactPhone(contact)!)
-                        : contactsService.getContactEmail(contact) != null
-                        ? Text(contactsService.getContactEmail(contact)!)
-                        : null,
-                    onTap: () {
-                      final name = contact.displayName;
-                      final memberId = 'member_${name.toLowerCase().replaceAll(' ', '_')}';
-                      if (!_members.contains(memberId)) {
-                        setState(() {
-                          _members.add(memberId);
-                          _memberNames[memberId] = name;
-                        });
-                      }
-                      Navigator.of(context).pop();
-                    },
-                  );
+          child: Column(
+            children: [
+              TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Search contacts',
+                  prefixIcon: Icon(Icons.search),
+                ),
+                onChanged: (query) {
+                  setState(() {
+                    _contactSearchQuery = query;
+                  });
                 },
-              );
-            },
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Consumer<ContactsService>(
+                  builder: (context, contactsService, child) {
+                    final contacts = _contactSearchQuery == null || _contactSearchQuery!.isEmpty
+                      ? contactsService.contacts
+                      : contactsService.contacts.where((c) => c.displayName.toLowerCase().contains(_contactSearchQuery!.toLowerCase())).toList();
+                    if (contactsService.isLoading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (contacts.isEmpty) {
+                      return const Center(child: Text('No contacts found'));
+                    }
+                    return ListView.builder(
+                      itemCount: contacts.length,
+                      itemBuilder: (context, index) {
+                        final contact = contacts[index];
+                        return ListTile(
+                          leading: const CircleAvatar(
+                            child: Icon(Icons.person),
+                          ),
+                          title: Text(contact.displayName),
+                          subtitle: contactsService.getContactPhone(contact) != null
+                              ? Text(contactsService.getContactPhone(contact)!)
+                              : contactsService.getContactEmail(contact) != null
+                                  ? Text(contactsService.getContactEmail(contact)!)
+                                  : null,
+                          onTap: () {
+                            final name = contact.displayName;
+                            final memberId = 'member_${name.toLowerCase().replaceAll(' ', '_')}';
+                            if (!_members.contains(memberId)) {
+                              setState(() {
+                                _members.add(memberId);
+                                _memberNames[memberId] = name;
+                              });
+                            }
+                            Navigator.of(context).pop();
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
         actions: [
