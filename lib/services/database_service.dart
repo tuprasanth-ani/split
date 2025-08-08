@@ -221,6 +221,66 @@ class DatabaseService extends ChangeNotifier {
     }
   }
 
+  Stream<List<ExpenseModel>> getGroupExpenses(String groupId) {
+    try {
+      return _db
+          .collection('expenses')
+          .where('groupId', isEqualTo: groupId)
+          .orderBy('date', descending: true)
+          .snapshots()
+          .map((snapshot) {
+            return snapshot.docs
+                .map((doc) {
+                  try {
+                    return ExpenseModel.fromMap({
+                      'id': doc.id,
+                      ...doc.data(),
+                    });
+                  } catch (e) {
+                    _logger.e('Error parsing expense ${doc.id}: $e');
+                    return null;
+                  }
+                })
+                .where((expense) => expense != null)
+                .cast<ExpenseModel>()
+                .toList();
+          });
+    } catch (e) {
+      _logger.e('Error getting group expenses: $e');
+      return Stream.value([]);
+    }
+  }
+
+  Stream<List<SettlementModel>> getGroupSettlements(String groupId) {
+    try {
+      return _db
+          .collection('settlements')
+          .where('groupId', isEqualTo: groupId)
+          .orderBy('date', descending: true)
+          .snapshots()
+          .map((snapshot) {
+            return snapshot.docs
+                .map((doc) {
+                  try {
+                    return SettlementModel.fromMap({
+                      'id': doc.id,
+                      ...doc.data(),
+                    });
+                  } catch (e) {
+                    _logger.e('Error parsing settlement ${doc.id}: $e');
+                    return null;
+                  }
+                })
+                .where((settlement) => settlement != null)
+                .cast<SettlementModel>()
+                .toList();
+          });
+    } catch (e) {
+      _logger.e('Error getting group settlements: $e');
+      return Stream.value([]);
+    }
+  }
+
   Future<GroupModel?> getGroup(String groupId) async {
     try {
       final doc = await _db.collection('groups').doc(groupId).get();

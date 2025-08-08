@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:splitzy/screens/groups_screen.dart';
 import 'package:splitzy/screens/settings_screen.dart';
 import 'package:splitzy/screens/settle_up_screen.dart';
+import 'package:splitzy/screens/history_screen.dart';
 import 'package:splitzy/screens/add_group_screen.dart';
 import 'package:splitzy/screens/add_expense_screen.dart';
-import 'package:splitzy/services/auth_service.dart';
-import 'package:splitzy/models/group_model.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _pages = const [
     GroupsScreen(),
+    HistoryScreen(),
     SettleUpScreen(),
     SettingsScreen(),
   ];
@@ -60,18 +60,10 @@ class _HomeScreenState extends State<HomeScreen> {
             title: const Text('Add Expense'),
             onTap: () {
               Navigator.pop(context);
-              final authService = Provider.of<AuthService>(context, listen: false);
-              final userId = authService.currentUser?.uid ?? 'anonymous';
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => AddExpenseScreen(group: GroupModel(
-                    id: 'temp',
-                    name: 'Select Group',
-                    members: [userId],
-                    memberNames: {userId: authService.currentUser?.displayName ?? 'You'},
-                    createdBy: userId,
-                  )),
+                  builder: (_) => const AddExpenseScreen(),
                 ),
               );
             },
@@ -132,6 +124,11 @@ class _HomeScreenState extends State<HomeScreen> {
               label: 'Groups',
             ),
             BottomNavigationBarItem(
+              icon: Icon(Icons.history_outlined),
+              activeIcon: Icon(Icons.history),
+              label: 'History',
+            ),
+            BottomNavigationBarItem(
               icon: Icon(Icons.account_balance_wallet_outlined),
               activeIcon: Icon(Icons.account_balance_wallet),
               label: 'Settle Up',
@@ -151,3 +148,4 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+

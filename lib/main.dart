@@ -7,7 +7,9 @@ import 'package:splitzy/utils/theme_provider.dart';
 import 'package:splitzy/services/database_service.dart';
 import 'package:splitzy/services/auth_service.dart';
 import 'package:splitzy/services/local_storage_service.dart';
+import 'package:splitzy/services/contacts_service.dart';
 import 'package:splitzy/screens/home_screen.dart';
+import 'package:splitzy/screens/login_screen.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -47,6 +49,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => DatabaseService()),
+        ChangeNotifierProvider(create: (_) => ContactsService()),
       ],
       child: const MyApp(),
     ),
@@ -108,10 +111,17 @@ class _SplashScreenState extends State<SplashScreen> {
         }
         
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
-          );
+          if (authService.isSignedIn) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const LoginScreen()),
+            );
+          }
         }
       }
     } catch (e) {
@@ -137,27 +147,40 @@ class _SplashScreenState extends State<SplashScreen> {
           children: [
             // App Logo
             Container(
-              width: 120,
-              height: 120,
+              width: 140,
+              height: 140,
               decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor,
-                borderRadius: BorderRadius.circular(24),
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).primaryColor,
+                    Theme.of(context).primaryColor.withValues(alpha: 0.7),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(35),
                 boxShadow: [
                   BoxShadow(
-                    color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
-                    blurRadius: 20,
+                    color: Theme.of(context).primaryColor.withValues(alpha: 0.4),
+                    blurRadius: 25,
                     spreadRadius: 5,
+                    offset: const Offset(0, 10),
+                  ),
+                  BoxShadow(
+                    color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
+                    blurRadius: 40,
+                    spreadRadius: 10,
                   ),
                 ],
               ),
               child: Image.asset(
                 'assets/logo.png',
-                width: 80,
-                height: 80,
+                width: 90,
+                height: 90,
                 errorBuilder: (context, error, stackTrace) {
                   return const Icon(
                     Icons.account_balance_wallet,
-                    size: 60,
+                    size: 70,
                     color: Colors.white,
                   );
                 },
@@ -186,15 +209,33 @@ class _SplashScreenState extends State<SplashScreen> {
             
             // Loading or Error
             if (_isLoading) ...[
-              CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Theme.of(context).primaryColor,
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(25),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
+                      blurRadius: 15,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).primaryColor,
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Text(
                 'Loading...',
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.5,
+                ),
               ),
             ] else if (_errorMessage.isNotEmpty) ...[
               Container(
@@ -243,3 +284,4 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 }
+

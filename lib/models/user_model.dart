@@ -34,10 +34,14 @@ class SplitzyUser {
         phoneNumber: data['phoneNumber'],
         createdAt: data['createdAt'] is String 
             ? DateTime.parse(data['createdAt']) 
-            : data['createdAt'] ?? DateTime.now(),
+            : data['createdAt'] is DateTime
+                ? data['createdAt']
+                : data['createdAt']?.toDate() ?? DateTime.now(),
         updatedAt: data['updatedAt'] is String 
             ? DateTime.parse(data['updatedAt']) 
-            : data['updatedAt'] ?? DateTime.now(),
+            : data['updatedAt'] is DateTime
+                ? data['updatedAt']
+                : data['updatedAt']?.toDate() ?? DateTime.now(),
         isActive: data['isActive'] ?? true,
         preferences: data['preferences'] != null 
             ? Map<String, dynamic>.from(data['preferences'])

@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "422910325457-n9mil7rrfgs74hj5n3s7um1fa53ht51h.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.splitzy.app",
+            "certificate_hash": "f21b24924013798c995031a427d5064a799c5885"
+          }
+        },
+        {
           "client_id": "422910325457-tau3dd2kh1r1mhp5kine4b212soj6nui.apps.googleusercontent.com",
           "client_type": 3
         }
