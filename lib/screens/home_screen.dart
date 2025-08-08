@@ -5,6 +5,10 @@ import 'package:splitzy/screens/settle_up_screen.dart';
 import 'package:splitzy/screens/history_screen.dart';
 import 'package:splitzy/screens/add_group_screen.dart';
 import 'package:splitzy/screens/add_expense_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:splitzy/services/database_service.dart';
+import 'package:splitzy/services/auth_service.dart';
+import 'package:splitzy/models/expense_model.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -75,6 +79,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final dbService = Provider.of<DatabaseService>(context, listen: false);
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final currentUser = authService.currentUser;
     return Scaffold(
       body: PageView(
         controller: _pageController,
@@ -83,7 +90,64 @@ class _HomeScreenState extends State<HomeScreen> {
             _currentIndex = index;
           });
         },
-        children: _pages,
+        children: [
+          // Home tab with new sections
+          SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text('Non-Group Expenses', style: Theme.of(context).textTheme.titleMedium),
+                ),
+                StreamBuilder<List<ExpenseModel>>(
+                  stream: dbService.getAllExpenses(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                    final nonGroup = snapshot.data!.where((e) => (e.groupId.isEmpty || e.groupId == null) && e.split.length == 2).toList();
+                    if (nonGroup.isEmpty) return const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('No non-group expenses.'),
+                    );
+                    return Column(
+                      children: nonGroup.map((e) => ListTile(
+                        title: Text(e.description),
+                        subtitle: Text('₹${e.amount.toStringAsFixed(2)} • ${e.payerName}'),
+                        trailing: Text('${e.date.day}/${e.date.month}/${e.date.year}'),
+                      )).toList(),
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text('My Expenses', style: Theme.of(context).textTheme.titleMedium),
+                ),
+                StreamBuilder<List<ExpenseModel>>(
+                  stream: dbService.getAllExpenses(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData || currentUser == null) return const Center(child: CircularProgressIndicator());
+                    final myExpenses = snapshot.data!.where((e) => e.payer == currentUser.uid || e.split.keys.contains(currentUser.uid)).toList();
+                    if (myExpenses.isEmpty) return const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('No expenses found.'),
+                    );
+                    return Column(
+                      children: myExpenses.map((e) => ListTile(
+                        title: Text(e.description),
+                        subtitle: Text('₹${e.amount.toStringAsFixed(2)} • ${e.payerName}'),
+                        trailing: Text('${e.date.day}/${e.date.month}/${e.date.year}'),
+                      )).toList(),
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+          ..._pages.sublist(1),
+        ],
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(

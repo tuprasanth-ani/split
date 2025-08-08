@@ -13,12 +13,12 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _nameController = TextEditingController();
+  // final _emailController = TextEditingController();
+  // final _passwordController = TextEditingController();
+  // final _nameController = TextEditingController();
 
-  bool _isSignUp = false;
-  bool _obscurePassword = true;
+  // bool _isSignUp = false;
+  // bool _obscurePassword = true;
   bool _isLoading = false;
 
   late AnimationController _animationController;
@@ -52,9 +52,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   @override
   void dispose() {
     _animationController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _nameController.dispose();
+    // _emailController.dispose();
+    // _passwordController.dispose();
+    // _nameController.dispose();
     super.dispose();
   }
 
@@ -82,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       const SizedBox(height: 60),
                       
                       // Auth Form
-                      _buildAuthForm(authService),
+                      // _buildAuthForm(authService), // Removed
                       
                       const SizedBox(height: 24),
                       
@@ -91,8 +91,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       
                       const SizedBox(height: 24),
                       
-                      // Toggle Sign Up/Sign In
-                      _buildToggleButton(),
+                      // Toggle Sign Up/Sign In // Removed
+                      // _buildToggleButton(), // Removed
                       
                       const SizedBox(height: 20),
                       
@@ -169,181 +169,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildAuthForm(AuthService authService) {
-    return Form(
-      key: _formKey,
-      child: Column(
-        children: [
-          // Name field (only for sign up)
-          if (_isSignUp) ...[
-            _buildTextField(
-              controller: _nameController,
-              label: 'Full Name',
-              icon: Icons.person_outline,
-              validator: (value) => Validators.validateName(
-                value,
-                minLength: 2,
-                maxLength: 50,
-                fieldName: 'Name',
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
-          
-          // Email field
-          _buildTextField(
-            controller: _emailController,
-            label: 'Email',
-            icon: Icons.email_outlined,
-            keyboardType: TextInputType.emailAddress,
-            validator: Validators.validateEmail,
-          ),
-          const SizedBox(height: 20),
-          
-          // Password field
-          _buildTextField(
-            controller: _passwordController,
-            label: 'Password',
-            icon: Icons.lock_outline,
-            obscureText: _obscurePassword,
-            validator: (value) => Validators.validatePassword(value, minLength: 6),
-            suffixIcon: IconButton(
-              icon: Icon(
-                _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                color: Theme.of(context).primaryColor.withValues(alpha: 0.7),
-              ),
-              onPressed: () {
-                setState(() {
-                  _obscurePassword = !_obscurePassword;
-                });
-              },
-            ),
-          ),
-          const SizedBox(height: 32),
-          
-          // Submit button
-          _buildSubmitButton(authService),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType? keyboardType,
-    bool obscureText = false,
-    String? Function(String?)? validator,
-    Widget? suffixIcon,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        obscureText: obscureText,
-        validator: validator,
-        style: TextStyle(
-          fontSize: 16,
-          letterSpacing: 0.5,
-        ),
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(
-            icon,
-            color: Theme.of(context).primaryColor.withValues(alpha: 0.7),
-          ),
-          suffixIcon: suffixIcon,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(
-              color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
-            ),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(
-              color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(
-              color: Theme.of(context).primaryColor,
-              width: 2,
-            ),
-          ),
-          filled: true,
-          fillColor: Theme.of(context).cardColor,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSubmitButton(AuthService authService) {
-    return Container(
-      width: double.infinity,
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Theme.of(context).primaryColor,
-            Theme.of(context).primaryColor.withValues(alpha: 0.8),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).primaryColor.withValues(alpha: 0.4),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: ElevatedButton(
-        onPressed: (_isLoading || authService.isLoading) 
-            ? null 
-            : () => _handleSubmit(authService),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(28),
-          ),
-        ),
-        child: (_isLoading || authService.isLoading)
-            ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : Text(
-                _isSignUp ? 'Create Account' : 'Sign In',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                  letterSpacing: 0.5,
-                ),
-              ),
-      ),
-    );
-  }
+  // Remove _buildAuthForm, _buildTextField, _buildSubmitButton, _buildToggleButton, _handleSubmit, and related state variables
 
   Widget _buildGoogleSignInButton(AuthService authService) {
     return Container(
@@ -397,36 +223,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildToggleButton() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          _isSignUp 
-              ? 'Already have an account? ' 
-              : 'Don\'t have an account? ',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            letterSpacing: 0.3,
-          ),
-        ),
-        TextButton(
-          onPressed: () {
-            setState(() {
-              _isSignUp = !_isSignUp;
-            });
-          },
-          child: Text(
-            _isSignUp ? 'Sign In' : 'Sign Up',
-            style: TextStyle(
-              color: Theme.of(context).primaryColor,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  // Remove _buildToggleButton
 
   Widget _buildErrorMessage(String message) {
     return Container(
@@ -458,51 +255,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         ],
       ),
     );
-  }
-
-  Future<void> _handleSubmit(AuthService authService) async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final email = _emailController.text.trim();
-      final password = _passwordController.text.trim();
-
-      if (_isSignUp) {
-        final name = _nameController.text.trim();
-        final result = await authService.createUserWithEmailAndPassword(
-          email: email,
-          password: password,
-          name: name,
-        );
-        
-        if (result != null && mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
-          );
-        }
-      } else {
-        final result = await authService.signInWithEmailAndPassword(
-          email,
-          password,
-        );
-        
-        if (result != null && mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
-          );
-        }
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
   }
 
   Future<void> _handleGoogleSignIn(AuthService authService) async {

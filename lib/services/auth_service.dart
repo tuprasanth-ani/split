@@ -169,65 +169,6 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  Future<UserCredential?> signInWithEmailAndPassword(String email, String password) async {
-    try {
-      _setLoading(true);
-      _setError(null);
-
-      final UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      _logger.i('Email sign-in successful');
-      return userCredential;
-    } on FirebaseAuthException catch (e) {
-      _logger.e('Email sign-in error: ${e.code} - ${e.message}');
-      _setError(_getAuthErrorMessage(e.code));
-      return null;
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  Future<UserCredential?> createUserWithEmailAndPassword({
-    required String email,
-    required String password,
-    required String name,
-  }) async {
-    try {
-      _setLoading(true);
-      _setError(null);
-
-      final UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      if (userCredential.user != null) {
-        await userCredential.user!.updateDisplayName(name);
-
-        final splitzyUser = SplitzyUser(
-          uid: userCredential.user!.uid,
-          name: name,
-          email: email,
-        );
-
-        await _saveUserToFirestore(splitzyUser);
-        _currentSplitzyUser = splitzyUser;
-      }
-
-      _logger.i('Account creation successful');
-      return userCredential;
-    } on FirebaseAuthException catch (e) {
-      _logger.e('Account creation error: ${e.code} - ${e.message}');
-      _setError(_getAuthErrorMessage(e.code));
-      return null;
-    } finally {
-      _setLoading(false);
-    }
-  }
-
   Future<bool> signInSilently() async {
     try {
       await _ensureGoogleSignInInitialized();
