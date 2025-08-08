@@ -18,9 +18,34 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _newMemberController = TextEditingController();
-  final List<String> _members = ['You'];
-  final Map<String, String> _memberNames = {'you': 'You'};
+  final List<String> _members = [];
+  final Map<String, String> _memberNames = {};
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeCurrentUser();
+  }
+
+  void _initializeCurrentUser() {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final user = authService.currentUser;
+    if (user != null) {
+      _members.add(user.uid);
+      _memberNames[user.uid] = user.name.isNotEmpty ? user.name : 'You';
+    } else {
+      // Fallback if user is not authenticated
+      _members.add('current_user');
+      _memberNames['current_user'] = 'You';
+    }
+  }
+
+  bool _isCurrentUser(String memberId) {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final user = authService.currentUser;
+    return (user != null && user.uid == memberId) || memberId == 'current_user';
+  }
 
   @override
   void dispose() {
@@ -79,22 +104,22 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
-                    ..._members.map((member) => ListTile(
+                    ..._members.map((memberId) => ListTile(
                       leading: const Icon(Icons.person),
-                      title: Text(member),
-                      trailing: member != 'You'
-                          ? IconButton(
+                      title: Text(_memberNames[memberId] ?? memberId),
+                      trailing: _isCurrentUser(memberId)
+                          ? null
+                          : IconButton(
                         icon: const Icon(Icons.remove_circle, color: Colors.red),
                         onPressed: _isLoading
                             ? null
                             : () {
                           setState(() {
-                            _members.remove(member);
-                            _memberNames.removeWhere((key, value) => value == member);
+                            _members.remove(memberId);
+                            _memberNames.remove(memberId);
                           });
                         },
-                      )
-                          : null,
+                      ),
                     )),
                     const Divider(),
                     ListTile(
@@ -117,12 +142,16 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
                             onPressed: _isLoading || _newMemberController.text.trim().isEmpty
                                 ? null
                                 : () {
-                              final newMember = _newMemberController.text.trim();
-                              if (Validators.validateName(newMember, minLength: 2, maxLength: 50, fieldName: 'Member Name') == null) {
+                              final newMemberName = _newMemberController.text.trim();
+                              if (Validators.validateName(newMemberName, minLength: 2, maxLength: 50, fieldName: 'Member Name') == null) {
                                 setState(() {
-                                  _members.add(newMember);
-                                  _memberNames[newMember.toLowerCase()] = newMember;
-                                  _newMemberController.clear();
+                                  // Generate a simple ID for the new member (name-based)
+                                  final memberId = 'member_${newMemberName.toLowerCase().replaceAll(' ', '_')}';
+                                  if (!_members.contains(memberId)) {
+                                    _members.add(memberId);
+                                    _memberNames[memberId] = newMemberName;
+                                    _newMemberController.clear();
+                                  }
                                 });
                               } else {
                                 _showErrorSnackBar('Invalid member name');
@@ -247,10 +276,11 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
                             : null,
                     onTap: () {
                       final name = contact.displayName;
-                      if (!_members.contains(name)) {
+                      final memberId = 'member_${name.toLowerCase().replaceAll(' ', '_')}';
+                      if (!_members.contains(memberId)) {
                         setState(() {
-                          _members.add(name);
-                          _memberNames[name.toLowerCase()] = name;
+                          _members.add(memberId);
+                          _memberNames[memberId] = name;
                         });
                       }
                       Navigator.of(context).pop();

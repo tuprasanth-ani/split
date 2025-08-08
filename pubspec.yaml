@@ -38,7 +38,6 @@ dependencies:
   connectivity_plus: ^6.1.0
   google_fonts: ^6.2.1
   logger: ^2.0.2+1
-  contacts_service: ^0.6.3
   flutter_contacts: ^1.1.9
 
 dev_dependencies:

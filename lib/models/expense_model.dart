@@ -42,7 +42,9 @@ class ExpenseModel {
         description: data['description'] ?? '',
         date: data['date'] is String 
             ? DateTime.parse(data['date']) 
-            : data['date'] ?? DateTime.now(),
+            : data['date'] is DateTime
+                ? data['date']
+                : data['date']?.toDate() ?? DateTime.now(),
         split: data['split'] != null 
             ? Map<String, double>.from(data['split']) 
             : <String, double>{},
@@ -50,10 +52,14 @@ class ExpenseModel {
         imageUrl: data['imageUrl'],
         createdAt: data['createdAt'] is String 
             ? DateTime.parse(data['createdAt']) 
-            : data['createdAt'] ?? DateTime.now(),
+            : data['createdAt'] is DateTime
+                ? data['createdAt']
+                : data['createdAt']?.toDate() ?? DateTime.now(),
         updatedAt: data['updatedAt'] is String 
             ? DateTime.parse(data['updatedAt']) 
-            : data['updatedAt'] ?? DateTime.now(),
+            : data['updatedAt'] is DateTime
+                ? data['updatedAt']
+                : data['updatedAt']?.toDate() ?? DateTime.now(),
       );
     } catch (e) {
       throw Exception('Error parsing ExpenseModel: $e');

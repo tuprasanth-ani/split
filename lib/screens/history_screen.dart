@@ -319,7 +319,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                 ),
               ),
               title: Text(
-                '${settlement.payerName} → ${settlement.receiverName}',
+                '${settlement.fromUserName} → ${settlement.toUserName}',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               subtitle: Column(
@@ -406,8 +406,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
           children: [
             _buildDetailRow('Group', group.name),
             _buildDetailRow('Amount', '₹${settlement.amount.toStringAsFixed(2)}'),
-            _buildDetailRow('From', settlement.payerName),
-            _buildDetailRow('To', settlement.receiverName),
+            _buildDetailRow('From', settlement.fromUserName),
+            _buildDetailRow('To', settlement.toUserName),
             _buildDetailRow('Date', DateFormat('MMMM dd, yyyy').format(settlement.date)),
           ],
         ),

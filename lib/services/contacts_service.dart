@@ -66,9 +66,10 @@ class ContactsService extends ChangeNotifier {
         withPhoto: false,
       );
 
-      // Sort contacts by display name
+      // Filter out contacts without names and sort by display name
+      _contacts = _contacts.where((contact) => contact.displayName.isNotEmpty).toList();
       _contacts.sort((a, b) => 
-        (a.displayName).toLowerCase().compareTo((b.displayName).toLowerCase())
+        a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase())
       );
 
       _logger.i('Loaded ${_contacts.length} contacts');

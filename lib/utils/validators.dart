@@ -441,6 +441,20 @@ class Validators {
     );
   }
 
+  /// Validate selection (list not empty)
+  static String? validateSelection(
+    List<dynamic>? selection, {
+    String? fieldName,
+  }) {
+    final field = fieldName ?? 'selection';
+    
+    if (selection == null || selection.isEmpty) {
+      return 'Please select at least one $field';
+    }
+    
+    return null;
+  }
+
   /// Validate group name
   static String? validateGroupName(String? value) {
     return validateName(
