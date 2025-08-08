@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "422910325457",
+    "project_id": "splitzy-83bdd",
+    "storage_bucket": "splitzy-83bdd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:422910325457:android:2021589141174f76facbf0",
+        "android_client_info": {
+          "package_name": "com.splitzy.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "422910325457-hqdhu87bgatsf2v586j8p5vofefdfk0v.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.splitzy.app",
+            "certificate_hash": "d33d09066ae565fad0fa910c5b839b52d3d2de2b"
+          }
+        },
+        {
+          "client_id": "422910325457-tau3dd2kh1r1mhp5kine4b212soj6nui.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBm3H9Ve9kRIw2R1YQby6OaFaFxd5zWR7s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "422910325457-tau3dd2kh1r1mhp5kine4b212soj6nui.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

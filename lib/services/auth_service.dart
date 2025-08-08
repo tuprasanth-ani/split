@@ -1,0 +1,489 @@
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:splitzy/models/user_model.dart';
+import 'package:logger/logger.dart';
+
+class AuthService extends ChangeNotifier {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final Logger _logger = Logger();
+  
+  User? _currentFirebaseUser;
+  SplitzyUser? _currentSplitzyUser;
+  GoogleSignInAccount? _currentGoogleUser;
+  bool _isLoading = false;
+  String? _errorMessage;
+  bool _isGoogleSignInInitialized = false;
+
+  // Getters
+  User? get currentFirebaseUser => _currentFirebaseUser ?? _auth.currentUser;
+  SplitzyUser? get currentUser => _currentSplitzyUser;
+  GoogleSignInAccount? get currentGoogleUser => _currentGoogleUser;
+  bool get isSignedIn => currentFirebaseUser != null;
+  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
+  String? get currentUserId => currentFirebaseUser?.uid;
+
+  AuthService() {
+    _init();
+  }
+
+  void _init() async {
+    _currentFirebaseUser = _auth.currentUser;
+    _auth.authStateChanges().listen(_onAuthStateChanged);
+    await _initializeGoogleSignIn();
+    if (_currentFirebaseUser != null) {
+      _loadCurrentUser();
+    }
+  }
+
+  Future<void> _initializeGoogleSignIn() async {
+    try {
+      // Initialize Google Sign-In (required in v7+)
+      await _googleSignIn.initialize();
+      _isGoogleSignInInitialized = true;
+      _logger.i('Google Sign-In initialized successfully');
+    } catch (e) {
+      _logger.e('Failed to initialize Google Sign-In: $e');
+      _isGoogleSignInInitialized = false;
+    }
+  }
+
+  Future<void> _ensureGoogleSignInInitialized() async {
+    if (!_isGoogleSignInInitialized) {
+      await _initializeGoogleSignIn();
+    }
+    if (!_isGoogleSignInInitialized) {
+      throw Exception('Google Sign-In initialization failed');
+    }
+  }
+
+  void _onAuthStateChanged(User? user) {
+    _currentFirebaseUser = user;
+    if (user != null) {
+      _loadCurrentUser();
+    } else {
+      _currentSplitzyUser = null;
+      _currentGoogleUser = null;
+    }
+    notifyListeners();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    if (_currentFirebaseUser == null) return;
+    
+    try {
+      final doc = await _firestore
+          .collection('users')
+          .doc(_currentFirebaseUser!.uid)
+          .get();
+          
+      if (doc.exists) {
+        _currentSplitzyUser = SplitzyUser.fromMap(doc.data()!);
+      } else {
+        // Create user document if it doesn't exist
+        _currentSplitzyUser = SplitzyUser(
+          uid: _currentFirebaseUser!.uid,
+          name: _currentFirebaseUser!.displayName ?? '',
+          email: _currentFirebaseUser!.email ?? '',
+          photoUrl: _currentFirebaseUser!.photoURL,
+        );
+        await _saveUserToFirestore(_currentSplitzyUser!);
+      }
+      notifyListeners();
+    } catch (e) {
+      _logger.e('Error loading current user: $e');
+    }
+  }
+
+  Future<void> _saveUserToFirestore(SplitzyUser user) async {
+    try {
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .set(user.toMap());
+    } catch (e) {
+      _logger.e('Error saving user to Firestore: $e');
+      rethrow;
+    }
+  }
+
+  void _setLoading(bool loading) {
+    _isLoading = loading;
+    notifyListeners();
+  }
+
+  void _setError(String? error) {
+    _errorMessage = error;
+    notifyListeners();
+  }
+
+  Future<UserCredential?> signInWithGoogle() async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      // Ensure Google Sign-In is initialized
+      await _ensureGoogleSignInInitialized();
+
+      // Check if platform supports authenticate method
+      if (!_googleSignIn.supportsAuthenticate()) {
+        throw Exception('Google Sign-In authenticate method is not supported on this platform');
+      }
+
+      // Trigger the authentication flow using the new API (v7+)
+      final GoogleSignInAccount googleUser = await _googleSignIn.authenticate(
+        scopeHint: ['email'], // Specify required scopes
+      );
+
+      // In v7, we need to get authorization for Firebase authentication
+      final authClient = googleUser.authorizationClient;
+      
+      // Try to get existing authorization or request new one
+      GoogleSignInClientAuthorization? authorization;
+      try {
+        // First try to get existing authorization
+        authorization = await authClient.authorizationForScopes(['email']);
+        
+        // If no existing authorization, request new one
+        authorization ??= await authClient.authorizeScopes(['email']);
+      } catch (e) {
+        _logger.w('Authorization failed, will try with ID token only: $e');
+      }
+
+      // Get authentication details - now synchronous in v7+
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+
+      // Create credential for Firebase
+      final credential = GoogleAuthProvider.credential(
+        idToken: googleAuth.idToken,
+        accessToken: authorization?.accessToken, // This might be null, Firebase will handle it
+      );
+
+      // Sign in with Firebase
+      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      
+      // Update local state
+      _currentGoogleUser = googleUser;
+      
+      // Create/update user in Firestore
+      if (userCredential.user != null) {
+        final splitzyUser = SplitzyUser(
+          uid: userCredential.user!.uid,
+          name: userCredential.user!.displayName ?? googleUser.displayName ?? '',
+          email: userCredential.user!.email ?? googleUser.email,
+          photoUrl: userCredential.user!.photoURL ?? googleUser.photoUrl,
+        );
+        
+        await _saveUserToFirestore(splitzyUser);
+        _currentSplitzyUser = splitzyUser;
+      }
+
+      _logger.i('Google sign-in successful');
+      return userCredential;
+    } on GoogleSignInException catch (e) {
+      _logger.e('Google Sign-In exception: ${e.code.name} - ${e.description}');
+      _setError(_getGoogleSignInErrorMessage(e.code.name));
+      return null;
+    } on FirebaseAuthException catch (e) {
+      _logger.e('Firebase Auth error: ${e.code} - ${e.message}');
+      _setError('Authentication failed: ${e.message}');
+      return null;
+    } catch (e) {
+      _logger.e('Google sign-in error: $e');
+      _setError('Sign-in failed. Please try again.');
+      return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<UserCredential?> signInWithEmailAndPassword(String email, String password) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      final UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      _logger.i('Email sign-in successful');
+      return userCredential;
+    } on FirebaseAuthException catch (e) {
+      _logger.e('Email sign-in error: ${e.code} - ${e.message}');
+      _setError(_getAuthErrorMessage(e.code));
+      return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<UserCredential?> createUserWithEmailAndPassword({
+    required String email,
+    required String password,
+    required String name,
+  }) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      final UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (userCredential.user != null) {
+        // Update display name
+        await userCredential.user!.updateDisplayName(name);
+        
+        // Create user in Firestore
+        final splitzyUser = SplitzyUser(
+          uid: userCredential.user!.uid,
+          name: name,
+          email: email,
+        );
+        
+        await _saveUserToFirestore(splitzyUser);
+        _currentSplitzyUser = splitzyUser;
+      }
+
+      _logger.i('Account creation successful');
+      return userCredential;
+    } on FirebaseAuthException catch (e) {
+      _logger.e('Account creation error: ${e.code} - ${e.message}');
+      _setError(_getAuthErrorMessage(e.code));
+      return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> signInSilently() async {
+    try {
+      await _ensureGoogleSignInInitialized();
+      
+      // Use the new attemptLightweightAuthentication method (v7+)
+      final result = _googleSignIn.attemptLightweightAuthentication();
+      
+      GoogleSignInAccount? googleUser;
+      
+      // Handle both synchronous and asynchronous returns
+      if (result is Future<GoogleSignInAccount?>) {
+        googleUser = await result;
+      } else {
+        googleUser = result as GoogleSignInAccount?;
+      }
+      
+      if (googleUser != null) {
+        // Get authorization client
+        final authClient = googleUser.authorizationClient;
+        
+        // Try to get existing authorization
+        GoogleSignInClientAuthorization? authorization;
+        try {
+          authorization = await authClient.authorizationForScopes(['email']);
+        } catch (e) {
+          _logger.w('Failed to get authorization for silent sign-in: $e');
+        }
+
+        // Get authentication tokens - now synchronous in v7+
+        final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+        
+        // Create Firebase credential
+        final credential = GoogleAuthProvider.credential(
+          idToken: googleAuth.idToken,
+          accessToken: authorization?.accessToken, // May be null for silent auth
+        );
+
+        await _auth.signInWithCredential(credential);
+        _currentGoogleUser = googleUser;
+        return true;
+      }
+      
+      return false;
+    } catch (e) {
+      _logger.w('Silent sign-in failed: $e');
+      return false;
+    }
+  }
+
+  Future<void> signOut() async {
+    try {
+      _setLoading(true);
+      await Future.wait([
+        _googleSignIn.signOut(),
+        _auth.signOut(),
+      ]);
+      _currentSplitzyUser = null;
+      _currentGoogleUser = null;
+      _logger.i('Sign out successful');
+    } catch (e) {
+      _logger.e('Sign out error: $e');
+      _setError('Failed to sign out');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> deleteAccount() async {
+    try {
+      _setLoading(true);
+      
+      if (_currentFirebaseUser != null) {
+        // Delete user data from Firestore
+        await _firestore
+            .collection('users')
+            .doc(_currentFirebaseUser!.uid)
+            .delete();
+            
+        // Delete Firebase Auth account
+        await _currentFirebaseUser!.delete();
+        
+        _currentSplitzyUser = null;
+        _currentGoogleUser = null;
+        _logger.i('Account deletion successful');
+      }
+    } on FirebaseAuthException catch (e) {
+      _logger.e('Account deletion error: ${e.code} - ${e.message}');
+      _setError('Failed to delete account: ${e.message}');
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> updateUserProfile({
+    String? name,
+    String? photoUrl,
+    String? phoneNumber,
+  }) async {
+    if (_currentSplitzyUser == null) return;
+
+    try {
+      _setLoading(true);
+      
+      final updatedUser = _currentSplitzyUser!.copyWith(
+        name: name ?? _currentSplitzyUser!.name,
+        photoUrl: photoUrl ?? _currentSplitzyUser!.photoUrl,
+        phoneNumber: phoneNumber ?? _currentSplitzyUser!.phoneNumber,
+      );
+      
+      await _saveUserToFirestore(updatedUser);
+      _currentSplitzyUser = updatedUser;
+      
+      // Update Firebase Auth profile if name changed
+      if (name != null && _currentFirebaseUser != null) {
+        await _currentFirebaseUser!.updateDisplayName(name);
+      }
+      
+      _logger.i('Profile update successful');
+    } catch (e) {
+      _logger.e('Profile update error: $e');
+      _setError('Failed to update profile');
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Helper method to get access token for additional API calls if needed
+  Future<String?> getAccessToken(List<String> scopes) async {
+    if (_currentGoogleUser == null) return null;
+
+    try {
+      final authClient = _currentGoogleUser!.authorizationClient;
+      final authorization = await authClient.authorizationForScopes(scopes) ?? await authClient.authorizeScopes(scopes);
+
+      return authorization?.accessToken; // The null-aware operator here is still a good safeguard.
+    } catch (e) {
+      _logger.e('Failed to get access token: $e');
+      return null;
+    }
+  }
+
+  Future<SplitzyUser?> getUserById(String userId) async {
+    try {
+      final doc = await _firestore
+          .collection('users')
+          .doc(userId)
+          .get();
+          
+      if (doc.exists) {
+        return SplitzyUser.fromMap(doc.data()!);
+      }
+      return null;
+    } catch (e) {
+      _logger.e('Error getting user by ID: $e');
+      return null;
+    }
+  }
+
+  Future<List<SplitzyUser>> searchUsers(String query) async {
+    try {
+      if (query.isEmpty) return [];
+      
+      final QuerySnapshot snapshot = await _firestore
+          .collection('users')
+          .where('email', isGreaterThanOrEqualTo: query.toLowerCase())
+          .where('email', isLessThan: '${query.toLowerCase()}\uf8ff')
+          .limit(10)
+          .get();
+          
+      return snapshot.docs
+          .map((doc) => SplitzyUser.fromMap(doc.data() as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      _logger.e('Error searching users: $e');
+      return [];
+    }
+  }
+
+  String _getAuthErrorMessage(String errorCode) {
+    switch (errorCode) {
+      case 'user-not-found':
+        return 'No account found with this email address.';
+      case 'wrong-password':
+        return 'Incorrect password.';
+      case 'email-already-in-use':
+        return 'An account already exists with this email address.';
+      case 'weak-password':
+        return 'Password is too weak.';
+      case 'invalid-email':
+        return 'Invalid email address.';
+      case 'user-disabled':
+        return 'This account has been disabled.';
+      case 'too-many-requests':
+        return 'Too many failed attempts. Please try again later.';
+      default:
+        return 'Authentication failed. Please try again.';
+    }
+  }
+
+  String _getGoogleSignInErrorMessage(String errorCode) {
+    switch (errorCode) {
+      case 'canceled':
+        return 'Sign-in was cancelled. Please try again if you want to continue.';
+      case 'interrupted':
+        return 'Sign-in was interrupted. Please try again.';
+      case 'clientConfigurationError':
+        return 'There is a configuration issue with Google Sign-In. Please contact support.';
+      case 'providerConfigurationError':
+        return 'Google Sign-In is currently unavailable. Please try again later.';
+      case 'uiUnavailable':
+        return 'Google Sign-In is currently unavailable. Please try again later.';
+      case 'userMismatch':
+        return 'There was an issue with your account. Please sign out and try again.';
+      case 'unknownError':
+      default:
+        return 'An unexpected error occurred during Google Sign-In. Please try again.';
+    }
+  }
+
+  void clearError() {
+    _setError(null);
+  }
+}
