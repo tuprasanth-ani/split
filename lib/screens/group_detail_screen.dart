@@ -448,15 +448,20 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   }
 
   // ADDED: Extracted duplicate code into a helper method
-  void _addNewMember(TextEditingController controller, StateSetter setDialogState) {
-    final newMember = controller.text.trim();
-    if (newMember.isNotEmpty && !currentGroup.members.contains(newMember)) {
+  void _addNewMember(TextEditingController controller, StateSetter setDialogState) async {
+    final newMemberName = controller.text.trim();
+    if (newMemberName.isEmpty) return;
+    // For demo, use name as both ID and name. In real app, use contact picker or email/UID.
+    final newMemberId = newMemberName;
+    if (currentGroup.members.contains(newMemberId)) return;
+    final dbService = Provider.of<DatabaseService>(context, listen: false);
+    final success = await dbService.addMemberToGroup(currentGroup.id, newMemberId, newMemberName);
+    if (success) {
       setDialogState(() {
         List<String> newMembers = List.from(currentGroup.members);
-        newMembers.add(newMember);
+        newMembers.add(newMemberId);
         Map<String, String> newMemberNames = Map.from(currentGroup.memberNames);
-        newMemberNames[newMember] = newMember;
-
+        newMemberNames[newMemberId] = newMemberName;
         currentGroup = currentGroup.copyWith(
           members: newMembers,
           memberNames: newMemberNames,
@@ -464,6 +469,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       });
       setState(() {}); // Update the main screen
       controller.clear();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to add member')),
+      );
     }
   }
 
