@@ -10,16 +10,16 @@ class ThemeProvider extends ChangeNotifier {
   bool _useSystemAccentColor = false;
   double _textScaleFactor = 1.0;
   
-  // Available color schemes
+  // Available color schemes - Updated with futuristic colors
   static const Map<String, Color> _colorSchemes = {
-    'default': Color(0xFF3F51B5), // Indigo
-    'blue': Color(0xFF2196F3),
-    'green': Color(0xFF4CAF50),
-    'orange': Color(0xFFFF9800),
-    'purple': Color(0xFF9C27B0),
-    'teal': Color(0xFF009688),
-    'red': Color(0xFFF44336),
-    'pink': Color(0xFFE91E63),
+    'default': Color(0xFF6366F1), // Modern Indigo
+    'neon_blue': Color(0xFF00D9FF), // Neon Blue
+    'cyber_purple': Color(0xFF8B5CF6), // Cyber Purple
+    'electric_green': Color(0xFF10B981), // Electric Green
+    'neon_pink': Color(0xFFEC4899), // Neon Pink
+    'cyber_orange': Color(0xFFFF6B35), // Cyber Orange
+    'matrix_green': Color(0xFF00FF41), // Matrix Green
+    'hologram_blue': Color(0xFF3B82F6), // Hologram Blue
   };
 
   // Getters
@@ -223,7 +223,7 @@ class ThemeProvider extends ChangeNotifier {
 
   /// Get text theme with custom font
   TextTheme _getTextTheme(ColorScheme colorScheme) {
-    final baseTextTheme = GoogleFonts.interTextTheme();
+    final baseTextTheme = GoogleFonts.poppinsTextTheme();
     
     return baseTextTheme.copyWith(
       displayLarge: baseTextTheme.displayLarge?.copyWith(
@@ -303,10 +303,11 @@ class ThemeProvider extends ChangeNotifier {
       elevation: 0,
       scrolledUnderElevation: 1,
       centerTitle: true,
-      titleTextStyle: GoogleFonts.inter(
+      titleTextStyle: GoogleFonts.poppins(
         fontSize: 20 * _textScaleFactor,
         fontWeight: FontWeight.w600,
         color: colorScheme.onSurface,
+        letterSpacing: 0.5,
       ),
       systemOverlayStyle: brightness == Brightness.light
           ? SystemUiOverlayStyle.dark
@@ -318,10 +319,14 @@ class ThemeProvider extends ChangeNotifier {
   CardThemeData _getCardTheme(ColorScheme colorScheme, Brightness brightness) {
     return CardThemeData(
       color: colorScheme.surfaceContainerHighest,
-      shadowColor: colorScheme.shadow,
-      elevation: 2,
+      shadowColor: colorScheme.primary.withValues(alpha: 0.3),
+      elevation: 4,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: colorScheme.primary.withValues(alpha: 0.1),
+          width: 1,
+        ),
       ),
     );
   }
@@ -332,14 +337,16 @@ class ThemeProvider extends ChangeNotifier {
       style: ElevatedButton.styleFrom(
         backgroundColor: colorScheme.primary,
         foregroundColor: colorScheme.onPrimary,
-        elevation: 2,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        elevation: 6,
+        shadowColor: colorScheme.primary.withValues(alpha: 0.4),
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(25),
         ),
-        textStyle: GoogleFonts.inter(
+        textStyle: GoogleFonts.poppins(
           fontSize: 14 * _textScaleFactor,
           fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
         ),
       ),
     );
@@ -385,9 +392,16 @@ class ThemeProvider extends ChangeNotifier {
     return FloatingActionButtonThemeData(
       backgroundColor: colorScheme.primary,
       foregroundColor: colorScheme.onPrimary,
-      elevation: 6,
+      elevation: 8,
+      focusElevation: 12,
+      hoverElevation: 10,
+      highlightElevation: 12,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(
+          color: colorScheme.primary.withValues(alpha: 0.3),
+          width: 2,
+        ),
       ),
     );
   }

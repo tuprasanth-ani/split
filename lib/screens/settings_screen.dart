@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:splitzy/utils/theme_provider.dart';
 import 'package:splitzy/services/auth_service.dart';
 import 'package:splitzy/services/local_storage_service.dart';
+import 'package:splitzy/screens/login_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -87,6 +88,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 'Export Data',
                 Icons.file_download_outlined,
                 onTap: () => _exportData(context),
+              ),
+              _buildAccountOption(
+                context,
+                'Sign Out',
+                Icons.logout_outlined,
+                onTap: () => _showSignOutDialog(context),
+                isDestructive: true,
               ),
               _buildAccountOption(
                 context,
@@ -468,6 +476,35 @@ Note: This is a demo export. In the full version, actual data would be exported 
     }
   }
 
+  void _showSignOutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: const Text(
+          'Are you sure you want to sign out? You can sign back in anytime.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _signOut();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showDeleteAccountDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -638,6 +675,53 @@ Note: This is a demo export. In the full version, actual data would be exported 
         scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Text('Backup failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _signOut() async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Signing out...'),
+            ],
+          ),
+        ),
+      );
+
+      await authService.signOut();
+
+      if (mounted) {
+        // Close loading dialog
+        Navigator.pop(context);
+        
+        // Navigate to login screen
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        // Close loading dialog
+        Navigator.pop(context);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to sign out: $e'),
             backgroundColor: Colors.red,
           ),
         );

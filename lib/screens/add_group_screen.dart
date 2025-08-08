@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:splitzy/models/group_model.dart';
 import 'package:splitzy/services/database_service.dart';
 import 'package:splitzy/services/auth_service.dart';
+import 'package:splitzy/services/contacts_service.dart';
 import 'package:splitzy/utils/validators.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 
 class AddGroupScreen extends StatefulWidget {
   const AddGroupScreen({super.key});
@@ -16,9 +18,34 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _newMemberController = TextEditingController();
-  final List<String> _members = ['You'];
-  final Map<String, String> _memberNames = {'you': 'You'};
+  final List<String> _members = [];
+  final Map<String, String> _memberNames = {};
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeCurrentUser();
+  }
+
+  void _initializeCurrentUser() {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final user = authService.currentUser;
+    if (user != null) {
+      _members.add(user.uid);
+      _memberNames[user.uid] = user.name.isNotEmpty ? user.name : 'You';
+    } else {
+      // Fallback if user is not authenticated
+      _members.add('current_user');
+      _memberNames['current_user'] = 'You';
+    }
+  }
+
+  bool _isCurrentUser(String memberId) {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final user = authService.currentUser;
+    return (user != null && user.uid == memberId) || memberId == 'current_user';
+  }
 
   @override
   void dispose() {
@@ -77,22 +104,22 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
-                    ..._members.map((member) => ListTile(
+                    ..._members.map((memberId) => ListTile(
                       leading: const Icon(Icons.person),
-                      title: Text(member),
-                      trailing: member != 'You'
-                          ? IconButton(
+                      title: Text(_memberNames[memberId] ?? memberId),
+                      trailing: _isCurrentUser(memberId)
+                          ? null
+                          : IconButton(
                         icon: const Icon(Icons.remove_circle, color: Colors.red),
                         onPressed: _isLoading
                             ? null
                             : () {
                           setState(() {
-                            _members.remove(member);
-                            _memberNames.removeWhere((key, value) => value == member);
+                            _members.remove(memberId);
+                            _memberNames.remove(memberId);
                           });
                         },
-                      )
-                          : null,
+                      ),
                     )),
                     const Divider(),
                     ListTile(
@@ -102,22 +129,36 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
                         decoration: const InputDecoration(hintText: 'Enter member name'),
                         validator: (value) => Validators.validateName(value, minLength: 2, maxLength: 50, fieldName: 'Member Name'),
                       ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.add, color: Colors.green),
-                        onPressed: _isLoading || _newMemberController.text.trim().isEmpty
-                            ? null
-                            : () {
-                          final newMember = _newMemberController.text.trim();
-                          if (Validators.validateName(newMember, minLength: 2, maxLength: 50, fieldName: 'Member Name') == null) {
-                            setState(() {
-                              _members.add(newMember);
-                              _memberNames[newMember.toLowerCase()] = newMember;
-                              _newMemberController.clear();
-                            });
-                          } else {
-                            _showErrorSnackBar('Invalid member name');
-                          }
-                        },
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.contacts, color: Colors.blue),
+                            onPressed: _isLoading ? null : _showContactsDialog,
+                            tooltip: 'Add from contacts',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.add, color: Colors.green),
+                            onPressed: _isLoading || _newMemberController.text.trim().isEmpty
+                                ? null
+                                : () {
+                              final newMemberName = _newMemberController.text.trim();
+                              if (Validators.validateName(newMemberName, minLength: 2, maxLength: 50, fieldName: 'Member Name') == null) {
+                                setState(() {
+                                  // Generate a simple ID for the new member (name-based)
+                                  final memberId = 'member_${newMemberName.toLowerCase().replaceAll(' ', '_')}';
+                                  if (!_members.contains(memberId)) {
+                                    _members.add(memberId);
+                                    _memberNames[memberId] = newMemberName;
+                                    _newMemberController.clear();
+                                  }
+                                });
+                              } else {
+                                _showErrorSnackBar('Invalid member name');
+                              }
+                            },
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -189,6 +230,87 @@ class _AddGroupScreenState extends State<AddGroupScreen> {
       _showErrorSnackBar('Failed to create group. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showContactsDialog() {
+    final contactsService = Provider.of<ContactsService>(context, listen: false);
+    
+    if (!contactsService.hasPermission) {
+      _requestContactsPermission();
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select from Contacts'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: Consumer<ContactsService>(
+            builder: (context, contactsService, child) {
+              if (contactsService.isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              
+              if (contactsService.contacts.isEmpty) {
+                return const Center(
+                  child: Text('No contacts found'),
+                );
+              }
+
+              return ListView.builder(
+                itemCount: contactsService.contacts.length,
+                itemBuilder: (context, index) {
+                  final contact = contactsService.contacts[index];
+                  return ListTile(
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.person),
+                    ),
+                    title: Text(contact.displayName),
+                    subtitle: contactsService.getContactPhone(contact) != null
+                        ? Text(contactsService.getContactPhone(contact)!)
+                        : contactsService.getContactEmail(contact) != null
+                            ? Text(contactsService.getContactEmail(contact)!)
+                            : null,
+                    onTap: () {
+                      final name = contact.displayName;
+                      final memberId = 'member_${name.toLowerCase().replaceAll(' ', '_')}';
+                      if (!_members.contains(memberId)) {
+                        setState(() {
+                          _members.add(memberId);
+                          _memberNames[memberId] = name;
+                        });
+                      }
+                      Navigator.of(context).pop();
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _requestContactsPermission() async {
+    final contactsService = Provider.of<ContactsService>(context, listen: false);
+    final granted = await contactsService.requestPermission();
+    
+    if (!mounted) return;
+    
+    if (granted) {
+      _showContactsDialog();
+    } else {
+      _showErrorSnackBar('Contacts permission is required to add members from contacts');
     }
   }
 

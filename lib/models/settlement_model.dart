@@ -56,17 +56,23 @@ class SettlementModel {
         groupName: data['groupName'] ?? '',
         date: data['date'] is String 
             ? DateTime.parse(data['date']) 
-            : data['date'] ?? DateTime.now(),
+            : data['date'] is DateTime
+                ? data['date']
+                : data['date']?.toDate() ?? DateTime.now(),
         status: _parseStatus(data['status']),
         paymentMethod: data['paymentMethod'],
         transactionId: data['transactionId'],
         notes: data['notes'],
         createdAt: data['createdAt'] is String 
             ? DateTime.parse(data['createdAt']) 
-            : data['createdAt'] ?? DateTime.now(),
+            : data['createdAt'] is DateTime
+                ? data['createdAt']
+                : data['createdAt']?.toDate() ?? DateTime.now(),
         updatedAt: data['updatedAt'] is String 
             ? DateTime.parse(data['updatedAt']) 
-            : data['updatedAt'] ?? DateTime.now(),
+            : data['updatedAt'] is DateTime
+                ? data['updatedAt']
+                : data['updatedAt']?.toDate() ?? DateTime.now(),
       );
     } catch (e) {
       throw Exception('Error parsing SettlementModel: $e');
